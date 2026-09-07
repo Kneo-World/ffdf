@@ -7,8 +7,8 @@ ScreenGui.Name = "CarBoostWaypoints"
 
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-Frame.Size = UDim2.new(0, 180, 0, 270)
+Frame.Position = UDim2.new(0.05, 0, 0.25, 0)
+Frame.Size = UDim2.new(0, 180, 0, 330)
 Frame.Active = true
 Frame.Draggable = true
 
@@ -17,15 +17,31 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 5)
 
 local Point1, Point2, Point3
-local DriveSpeed = 120 -- Скорость движения авто
+local DriveSpeed = 100
 local IsDriving = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Функция физической авто-езды к точке
--- Замени только функцию DriveTo в своем скрипте на эту:
+-- Функция поднятия машины над землей
+local function LiftVehicle()
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.SeatPart then
+        local vehicleSeat = humanoid.SeatPart
+        local vehicleModel = vehicleSeat.Parent
+        local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
+        
+        -- Мгновенно подбрасываем машину на 4 студа вверх и сбрасываем застревание
+        primaryPart.CFrame = primaryPart.CFrame + Vector3.new(0, 4, 0)
+        primaryPart.AssemblyLinearVelocity = Vector3.new(0, 15, 0)
+        primaryPart.AssemblyAngularVelocity = Vector3.zero
+    end
+end
 
+-- Функция езды к точке
 local function DriveTo(targetCFrame)
     if not targetCFrame or IsDriving then return end
     IsDriving = true
@@ -45,7 +61,6 @@ local function DriveTo(targetCFrame)
 
     local speed = tonumber(DriveSpeed) or 100
     
-    -- Сбрасываем угловую скорость (чтобы машину не наклоняло в бока)
     primaryPart.AssemblyAngularVelocity = Vector3.zero
     
     while IsDriving do
@@ -63,14 +78,10 @@ local function DriveTo(targetCFrame)
 
         local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
         
-        -- Поворот строго по горизонтали (без наклона носа/кормы вниз)
         local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
         primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.2)
         
-        -- Убираем вращение, чтобы подвеску не скручивало
         primaryPart.AssemblyAngularVelocity = Vector3.zero
-        
-        -- Импульс с легким удерживанием в воздухе (на 0.5 студа над землей)
         primaryPart.AssemblyLinearVelocity = (direction * speed) + Vector3.new(0, 1, 0)
 
         task.wait(0.03)
@@ -84,7 +95,7 @@ end
 local function CreateButton(text, color, callback)
     local btn = Instance.new("TextButton")
     btn.Parent = Frame
-    btn.Size = UDim2.new(1, -10, 0, 26)
+    btn.Size = UDim2.new(1, -10, 0, 25)
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
@@ -93,14 +104,14 @@ local function CreateButton(text, color, callback)
     btn.MouseButton1Click:Connect(callback)
 end
 
--- Поле ввода скорости езды
+-- Поле ввода скорости
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Parent = Frame
-SpeedInput.Size = UDim2.new(1, -10, 0, 26)
+SpeedInput.Size = UDim2.new(1, -10, 0, 25)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedInput.PlaceholderText = "Скорость (100-200)"
-SpeedInput.Text = "120"
+SpeedInput.PlaceholderText = "Скорость (80-120)"
+SpeedInput.Text = "100"
 SpeedInput.Font = Enum.Font.SourceSans
 SpeedInput.TextSize = 13
 
@@ -109,7 +120,12 @@ SpeedInput.FocusLost:Connect(function()
     if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
--- Кнопки сохранения точек
+-- Кнопка подбрасывания/вытаскивания из текстур
+CreateButton("⬆ ПОДНЯТЬ МАШИНУ ⬆", Color3.fromRGB(200, 100, 30), function()
+    LiftVehicle()
+end)
+
+-- Кнопки точек
 CreateButton("Сохранить Точку 1", Color3.fromRGB(50, 120, 50), function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         Point1 = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -128,7 +144,6 @@ CreateButton("Сохранить Точку 3", Color3.fromRGB(50, 120, 50), fun
     end
 end)
 
--- Кнопки старта движения
 CreateButton("Ехать к Точке 1", Color3.fromRGB(70, 70, 150), function()
     task.spawn(function() DriveTo(Point1) end)
 end)
