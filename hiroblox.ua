@@ -45,6 +45,9 @@ local function DriveTo(targetCFrame)
 
     local speed = tonumber(DriveSpeed) or 100
     
+    -- Сбрасываем угловую скорость (чтобы машину не наклоняло в бока)
+    primaryPart.AssemblyAngularVelocity = Vector3.zero
+    
     while IsDriving do
         if not character or not humanoid.SeatPart then break end
         
@@ -54,25 +57,27 @@ local function DriveTo(targetCFrame)
 
         if distance < 10 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
+            primaryPart.AssemblyAngularVelocity = Vector3.zero
             break
         end
 
         local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
         
-        -- Плавный поворот кузова без ломания подвески (Lerp)
+        -- Поворот строго по горизонтали (без наклона носа/кормы вниз)
         local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
-        primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.15)
+        primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.2)
         
-        -- Даем импульс скорости вперед
-        primaryPart.AssemblyLinearVelocity = direction * speed
+        -- Убираем вращение, чтобы подвеску не скручивало
+        primaryPart.AssemblyAngularVelocity = Vector3.zero
         
-        -- Небольшая компенсация вверх, чтобы колеса не вжимало в асфальт
-        primaryPart.AssemblyLinearVelocity = primaryPart.AssemblyLinearVelocity + Vector3.new(0, 2, 0)
+        -- Импульс с легким удерживанием в воздухе (на 0.5 студа над землей)
+        primaryPart.AssemblyLinearVelocity = (direction * speed) + Vector3.new(0, 1, 0)
 
         task.wait(0.03)
     end
     
     primaryPart.AssemblyLinearVelocity = Vector3.zero
+    primaryPart.AssemblyAngularVelocity = Vector3.zero
     IsDriving = false
 end
 
