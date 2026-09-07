@@ -3,12 +3,12 @@ local Frame = Instance.new("Frame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarFlyGUI"
+ScreenGui.Name = "CarBoostWaypoints"
 
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-Frame.Size = UDim2.new(0, 170, 0, 290)
+Frame.Size = UDim2.new(0, 180, 0, 270)
 Frame.Active = true
 Frame.Draggable = true
 
@@ -17,84 +17,60 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 5)
 
 local Point1, Point2, Point3
-local FlySpeed = 80
-local IsMoving = false
+local DriveSpeed = 120 -- Скорость движения авто
+local IsDriving = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Функция безопасного перемещения авто
-local function SafeMove(targetCFrame)
-    if not targetCFrame or IsMoving then return end
-    IsMoving = true
+-- Функция физической авто-езды к точке
+local function DriveTo(targetCFrame)
+    if not targetCFrame or IsDriving then return end
+    IsDriving = true
     
     local character = LocalPlayer.Character
-    if not character then IsMoving = false return end
+    if not character then IsDriving = false return end
     
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local targetModel = character:FindFirstChild("HumanoidRootPart")
-    local isVehicle = false
-    
-    -- Проверяем, сидим ли в машине
-    if humanoid and humanoid.SeatPart then
-        targetModel = humanoid.SeatPart.Parent -- Модель машины
-        isVehicle = true
+    if not humanoid or not humanoid.SeatPart then
+        print("Сначала сядьте в машину!")
+        IsDriving = false
+        return
     end
 
-    if not targetModel then IsMoving = false return end
+    local vehicleSeat = humanoid.SeatPart
+    local vehicleModel = vehicleSeat.Parent
+    local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
 
-    -- Отключаем коллизию (чтобы не колбасило и не закидывало под карту)
-    local originalVelocities = {}
-    for _, part in pairs(targetModel:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-            part.AssemblyLinearVelocity = Vector3.zero
-            part.AssemblyAngularVelocity = Vector3.zero
-        end
-    end
-
-    local mainPart = isVehicle and (targetModel.PrimaryPart or humanoid.SeatPart) or targetModel
-    local currentSpeed = tonumber(FlySpeed) or 80
-    local distance = (mainPart.Position - targetCFrame.Position).Magnitude
-    local duration = distance / currentSpeed
-    local startTime = tick()
+    local speed = tonumber(DriveSpeed) or 120
     
-    local startCFrame = mainPart.CFrame
-
-    -- Плавный полет без конфликта физики
-    while (tick() - startTime) < duration do
-        if not character or not mainPart then break end
-        local alpha = (tick() - startTime) / duration
+    -- Цикл ускорения машины в сторону точки
+    while IsDriving do
+        if not character or not humanoid.SeatPart then break end
         
-        -- Поднимаем чуть выше земли (+3 студа), чтобы не застревать
-        local nextCFrame = startCFrame:Lerp(targetCFrame + Vector3.new(0, 3, 0), alpha)
-        
-        if isVehicle then
-            targetModel:PivotTo(nextCFrame)
-        else
-            mainPart.CFrame = nextCFrame
-        end
-        
-        task.wait()
-    end
-    
-    -- Финальная посадка
-    if isVehicle then
-        targetModel:PivotTo(targetCFrame)
-    else
-        mainPart.CFrame = targetCFrame
-    end
+        local currentPos = primaryPart.Position
+        local targetPos = targetCFrame.Position
+        local distance = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Magnitude
 
-    -- Включаем коллизию обратно
-    task.wait(0.2)
-    for _, part in pairs(targetModel:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = true
-            part.AssemblyLinearVelocity = Vector3.zero
+        -- Если приехали близко к точке — останавливаемся
+        if distance < 8 then
+            primaryPart.AssemblyLinearVelocity = Vector3.zero
+            break
         end
+
+        -- Рассчитываем направление движения по земле
+        local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
+        
+        -- Поворачиваем машину в сторону точки
+        primaryPart.CFrame = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
+        
+        -- Применяем физический Boost (как в Sakura Mod)
+        primaryPart.AssemblyLinearVelocity = direction * speed
+
+        task.wait(0.03)
     end
     
-    IsMoving = false
+    IsDriving = false
 end
 
 local function CreateButton(text, color, callback)
@@ -109,21 +85,23 @@ local function CreateButton(text, color, callback)
     btn.MouseButton1Click:Connect(callback)
 end
 
+-- Поле ввода скорости езды
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Parent = Frame
 SpeedInput.Size = UDim2.new(1, -10, 0, 26)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedInput.PlaceholderText = "Скорость (80-120 для авто)"
-SpeedInput.Text = "80"
+SpeedInput.PlaceholderText = "Скорость (100-200)"
+SpeedInput.Text = "120"
 SpeedInput.Font = Enum.Font.SourceSans
 SpeedInput.TextSize = 13
 
 SpeedInput.FocusLost:Connect(function()
     local val = tonumber(SpeedInput.Text)
-    if val and val > 0 then FlySpeed = val else SpeedInput.Text = tostring(FlySpeed) end
+    if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
+-- Кнопки сохранения точек
 CreateButton("Сохранить Точку 1", Color3.fromRGB(50, 120, 50), function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         Point1 = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -142,14 +120,19 @@ CreateButton("Сохранить Точку 3", Color3.fromRGB(50, 120, 50), fun
     end
 end)
 
-CreateButton("Лететь к Точке 1", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() SafeMove(Point1) end)
+-- Кнопки старта движения
+CreateButton("Ехать к Точке 1", Color3.fromRGB(70, 70, 150), function()
+    task.spawn(function() DriveTo(Point1) end)
 end)
 
-CreateButton("Лететь к Точке 2", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() SafeMove(Point2) end)
+CreateButton("Ехать к Точке 2", Color3.fromRGB(70, 70, 150), function()
+    task.spawn(function() DriveTo(Point2) end)
 end)
 
-CreateButton("Лететь к Точке 3", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() SafeMove(Point3) end)
+CreateButton("Ехать к Точке 3", Color3.fromRGB(70, 70, 150), function()
+    task.spawn(function() DriveTo(Point3) end)
+end)
+
+CreateButton("СТОП", Color3.fromRGB(150, 50, 50), function()
+    IsDriving = false
 end)
