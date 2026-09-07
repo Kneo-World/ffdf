@@ -3,7 +3,7 @@ local Frame = Instance.new("Frame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CustomWaypointGUI"
+ScreenGui.Name = "CarFlyGUI"
 
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
@@ -17,53 +17,83 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 5)
 
 local Point1, Point2, Point3
-local FlySpeed = 25
-local IsMoving = false -- Флаг защиты от бесконечного зацикливания
+local FlySpeed = 80
+local IsMoving = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local function MoveToTarget(targetCFrame)
+-- Функция безопасного перемещения авто
+local function SafeMove(targetCFrame)
     if not targetCFrame or IsMoving then return end
     IsMoving = true
     
     local character = LocalPlayer.Character
     if not character then IsMoving = false return end
     
-    -- Определяем, сидит ли игрок в машине или идет пешком
-    local root = character:FindFirstChild("HumanoidRootPart")
     local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local targetModel = character:FindFirstChild("HumanoidRootPart")
+    local isVehicle = false
     
+    -- Проверяем, сидим ли в машине
     if humanoid and humanoid.SeatPart then
-        -- Если сидим в машине, двигаем корпус машины
-        root = humanoid.SeatPart.Parent.PrimaryPart or humanoid.SeatPart
+        targetModel = humanoid.SeatPart.Parent -- Модель машины
+        isVehicle = true
     end
 
-    if not root then IsMoving = false return end
+    if not targetModel then IsMoving = false return end
 
-    local currentSpeed = tonumber(FlySpeed) or 25
-    local stepSize = 8 -- Уменьшенный шаг, чтобы античит не триггерился
-    local distance = (root.Position - targetCFrame.Position).Magnitude
-    local steps = math.floor(distance / stepSize)
+    -- Отключаем коллизию (чтобы не колбасило и не закидывало под карту)
+    local originalVelocities = {}
+    for _, part in pairs(targetModel:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+            part.AssemblyLinearVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+
+    local mainPart = isVehicle and (targetModel.PrimaryPart or humanoid.SeatPart) or targetModel
+    local currentSpeed = tonumber(FlySpeed) or 80
+    local distance = (mainPart.Position - targetCFrame.Position).Magnitude
+    local duration = distance / currentSpeed
+    local startTime = tick()
     
-    local startCFrame = root.CFrame
-    
-    for i = 1, steps do
-        if not character or not root then break end
+    local startCFrame = mainPart.CFrame
+
+    -- Плавный полет без конфликта физики
+    while (tick() - startTime) < duration do
+        if not character or not mainPart then break end
+        local alpha = (tick() - startTime) / duration
         
-        local alpha = i / steps
-        local nextPosition = startCFrame:Lerp(targetCFrame, alpha)
+        -- Поднимаем чуть выше земли (+3 студа), чтобы не застревать
+        local nextCFrame = startCFrame:Lerp(targetCFrame + Vector3.new(0, 3, 0), alpha)
         
-        root.CFrame = nextPosition
+        if isVehicle then
+            targetModel:PivotTo(nextCFrame)
+        else
+            mainPart.CFrame = nextCFrame
+        end
         
-        local delayTime = stepSize / currentSpeed
-        task.wait(delayTime)
+        task.wait()
     end
     
-    if root then root.CFrame = targetCFrame end
+    -- Финальная посадка
+    if isVehicle then
+        targetModel:PivotTo(targetCFrame)
+    else
+        mainPart.CFrame = targetCFrame
+    end
+
+    -- Включаем коллизию обратно
+    task.wait(0.2)
+    for _, part in pairs(targetModel:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+            part.AssemblyLinearVelocity = Vector3.zero
+        end
+    end
     
-    -- Пауза 1.5 сек, чтобы сервер сбросил накопленную дистанцию в логах
-    task.wait(1.5)
     IsMoving = false
 end
 
@@ -84,8 +114,8 @@ SpeedInput.Parent = Frame
 SpeedInput.Size = UDim2.new(1, -10, 0, 26)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedInput.PlaceholderText = "Скорость (25 пешком / 70+ авто)"
-SpeedInput.Text = "25"
+SpeedInput.PlaceholderText = "Скорость (80-120 для авто)"
+SpeedInput.Text = "80"
 SpeedInput.Font = Enum.Font.SourceSans
 SpeedInput.TextSize = 13
 
@@ -113,13 +143,13 @@ CreateButton("Сохранить Точку 3", Color3.fromRGB(50, 120, 50), fun
 end)
 
 CreateButton("Лететь к Точке 1", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() MoveToTarget(Point1) end)
+    task.spawn(function() SafeMove(Point1) end)
 end)
 
 CreateButton("Лететь к Точке 2", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() MoveToTarget(Point2) end)
+    task.spawn(function() SafeMove(Point2) end)
 end)
 
 CreateButton("Лететь к Точке 3", Color3.fromRGB(70, 70, 150), function()
-    task.spawn(function() MoveToTarget(Point3) end)
+    task.spawn(function() SafeMove(Point3) end)
 end)
