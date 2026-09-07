@@ -24,6 +24,8 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- Функция физической авто-езды к точке
+-- Замени только функцию DriveTo в своем скрипте на эту:
+
 local function DriveTo(targetCFrame)
     if not targetCFrame or IsDriving then return end
     IsDriving = true
@@ -33,7 +35,6 @@ local function DriveTo(targetCFrame)
     
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid or not humanoid.SeatPart then
-        print("Сначала сядьте в машину!")
         IsDriving = false
         return
     end
@@ -42,9 +43,8 @@ local function DriveTo(targetCFrame)
     local vehicleModel = vehicleSeat.Parent
     local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
 
-    local speed = tonumber(DriveSpeed) or 120
+    local speed = tonumber(DriveSpeed) or 100
     
-    -- Цикл ускорения машины в сторону точки
     while IsDriving do
         if not character or not humanoid.SeatPart then break end
         
@@ -52,24 +52,27 @@ local function DriveTo(targetCFrame)
         local targetPos = targetCFrame.Position
         local distance = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Magnitude
 
-        -- Если приехали близко к точке — останавливаемся
-        if distance < 8 then
+        if distance < 10 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
             break
         end
 
-        -- Рассчитываем направление движения по земле
         local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
         
-        -- Поворачиваем машину в сторону точки
-        primaryPart.CFrame = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
+        -- Плавный поворот кузова без ломания подвески (Lerp)
+        local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
+        primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.15)
         
-        -- Применяем физический Boost (как в Sakura Mod)
+        -- Даем импульс скорости вперед
         primaryPart.AssemblyLinearVelocity = direction * speed
+        
+        -- Небольшая компенсация вверх, чтобы колеса не вжимало в асфальт
+        primaryPart.AssemblyLinearVelocity = primaryPart.AssemblyLinearVelocity + Vector3.new(0, 2, 0)
 
         task.wait(0.03)
     end
     
+    primaryPart.AssemblyLinearVelocity = Vector3.zero
     IsDriving = false
 end
 
