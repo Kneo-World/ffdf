@@ -23,7 +23,7 @@ local IsDriving = false
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--поднятия к точки 6767
+-поднятия и 6767
 local function LiftVehicle()
     local character = LocalPlayer.Character
     if not character then return end
@@ -34,40 +34,54 @@ local function LiftVehicle()
     local vehicleSeat = humanoid.SeatPart
     local vehicleModel = vehicleSeat.Parent
     
-    -- 1. Запоминаем сиденье и высаживаем персонажа, чтобы сбросить застревание физики A-Chassis
-    humanoid.Sit = false
-    task.wait(0.05)
+    -- 1. Находим папку Wheels и забираем все блоки Collider
+    local colliders = {}
+    local wheelsFolder = vehicleModel:FindFirstChild("Wheels") or vehicleModel:FindFirstChild("wheels")
     
-    -- 2. Замораживаем и отключаем коллизию у ВСЕХ деталей машины
-    local parts = {}
-    for _, part in pairs(vehicleModel:GetDescendants()) do
-        if part:IsA("BasePart") then
-            table.insert(parts, {p = part, can = part.CanCollide})
-            part.CanCollide = false
-            part.AssemblyLinearVelocity = Vector3.zero
-            part.AssemblyAngularVelocity = Vector3.zero
-            part.Anchored = true -- Полный стоп физического движка
+    if wheelsFolder then
+        for _, wheel in pairs(wheelsFolder:GetChildren()) do
+            local collider = wheel:FindFirstChild("Collider") or wheel:FindFirstChild("collider")
+            if collider and collider:IsA("BasePart") then
+                table.insert(colliders, collider)
+            end
+        end
+    else
+        -- Если папки Wheels нет, ищем Collider по всей машине
+        for _, part in pairs(vehicleModel:GetDescendants()) do
+            if part.Name == "Collider" and part:IsA("BasePart") then
+                table.insert(colliders, part)
+            end
         end
     end
     
-    -- 3. Принудительно сдвигаем машину на 7 студов ВВЕРХ
-    local targetCFrame = vehicleModel:GetPivot() + Vector3.new(0, 7, 0)
-    vehicleModel:PivotTo(targetCFrame)
-    task.wait(0.05)
-    
-    -- 4. Снимаем заморозку (Anchored) и возвращаем коллизию
-    for _, data in pairs(parts) do
-        if data.p and data.p.Parent then
-            data.p.Anchored = false
-            data.p.CanCollide = data.can
-            data.p.AssemblyLinearVelocity = Vector3.new(0, 5, 0)
-        end
+    -- 2. ВЫКЛЮЧАЕМ коллизию у всех колайдеров колес и сбрасываем скорость
+    for _, collider in pairs(colliders) do
+        collider.CanCollide = false
+        collider.AssemblyLinearVelocity = Vector3.zero
+        collider.AssemblyAngularVelocity = Vector3.zero
     end
     
-    -- 5. Сажаем персонажа обратно в машину
-    task.wait(0.05)
-    vehicleSeat:Sit(humanoid)
+    -- Сбрасываем инерцию всей машины
+    if vehicleModel.PrimaryPart then
+        vehicleModel.PrimaryPart.AssemblyLinearVelocity = Vector3.zero
+        vehicleModel.PrimaryPart.AssemblyAngularVelocity = Vector3.zero
+    end
+
+    -- 3. Мгновенно поднимаем авто на 6 студов вверх над дорогой
+    local currentPivot = vehicleModel:GetPivot()
+    vehicleModel:PivotTo(currentPivot + Vector3.new(0, 6, 0))
+    
+    -- 4. Ждем 0.3 секунды, пока машина поднимется из текстур
+    task.wait(0.3)
+    
+    -- 5. ВКЛЮЧАЕМ коллизию колес обратно, чтобы она встала на асфальт
+    for _, collider in pairs(colliders) do
+        if collider and collider.Parent then
+            collider.CanCollide = true
+        end
+    end
 end
+
 -- Функция движения к точке
 local function DriveTo(targetCFrame)
     if not targetCFrame or IsDriving then return end
