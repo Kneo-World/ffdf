@@ -23,7 +23,7 @@ local IsDriving = false
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Функция поднятия машины над землей
+-- Принудительный подъем всей модели машины
 local function LiftVehicle()
     local character = LocalPlayer.Character
     if not character then return end
@@ -32,16 +32,22 @@ local function LiftVehicle()
     if humanoid and humanoid.SeatPart then
         local vehicleSeat = humanoid.SeatPart
         local vehicleModel = vehicleSeat.Parent
-        local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
         
-        -- Мгновенно подбрасываем машину на 4 студа вверх и сбрасываем застревание
-        primaryPart.CFrame = primaryPart.CFrame + Vector3.new(0, 4, 0)
-        primaryPart.AssemblyLinearVelocity = Vector3.new(0, 15, 0)
-        primaryPart.AssemblyAngularVelocity = Vector3.zero
+        -- Сбрасываем инерцию и скорость со всех частей машины
+        for _, part in pairs(vehicleModel:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.AssemblyLinearVelocity = Vector3.zero
+                part.AssemblyAngularVelocity = Vector3.zero
+            end
+        end
+        
+        -- Жестко перемещаем авто на 6 студов вверх
+        local currentCFrame = vehicleModel:GetPivot()
+        vehicleModel:PivotTo(currentCFrame + Vector3.new(0, 6, 0))
     end
 end
 
--- Функция езды к точке
+-- Функция движения к точке
 local function DriveTo(targetCFrame)
     if not targetCFrame or IsDriving then return end
     IsDriving = true
@@ -60,8 +66,6 @@ local function DriveTo(targetCFrame)
     local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
 
     local speed = tonumber(DriveSpeed) or 100
-    
-    primaryPart.AssemblyAngularVelocity = Vector3.zero
     
     while IsDriving do
         if not character or not humanoid.SeatPart then break end
@@ -120,12 +124,12 @@ SpeedInput.FocusLost:Connect(function()
     if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
--- Кнопка подбрасывания/вытаскивания из текстур
+-- Кнопка сброса застревания
 CreateButton("⬆ ПОДНЯТЬ МАШИНУ ⬆", Color3.fromRGB(200, 100, 30), function()
     LiftVehicle()
 end)
 
--- Кнопки точек
+-- Кнопки сохранения точек
 CreateButton("Сохранить Точку 1", Color3.fromRGB(50, 120, 50), function()
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         Point1 = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -144,6 +148,7 @@ CreateButton("Сохранить Точку 3", Color3.fromRGB(50, 120, 50), fun
     end
 end)
 
+-- Кнопки старта движения
 CreateButton("Ехать к Точке 1", Color3.fromRGB(70, 70, 150), function()
     task.spawn(function() DriveTo(Point1) end)
 end)
