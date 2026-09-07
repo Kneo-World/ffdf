@@ -33,20 +33,31 @@ local function LiftVehicle()
         local vehicleSeat = humanoid.SeatPart
         local vehicleModel = vehicleSeat.Parent
         
-        -- Сбрасываем инерцию и скорость со всех частей машины
+        -- 1. Находим все части колёс/подвески и временно отключаем коллизию
+        local affectedParts = {}
         for _, part in pairs(vehicleModel:GetDescendants()) do
             if part:IsA("BasePart") then
+                table.insert(affectedParts, {part = part, canCollide = part.CanCollide})
+                part.CanCollide = false
                 part.AssemblyLinearVelocity = Vector3.zero
                 part.AssemblyAngularVelocity = Vector3.zero
             end
         end
         
-        -- Жестко перемещаем авто на 6 студов вверх
-        local currentCFrame = vehicleModel:GetPivot()
-        vehicleModel:PivotTo(currentCFrame + Vector3.new(0, 6, 0))
+        -- 2. Телепортируем машину на 5 студов вверх
+        local currentPivot = vehicleModel:GetPivot()
+        vehicleModel:PivotTo(currentPivot + Vector3.new(0, 5, 0))
+        
+        -- 3. Возвращаем коллизию через короткий микро-степ
+        task.delay(0.1, function()
+            for _, data in pairs(affectedParts) do
+                if data.part and data.part.Parent then
+                    data.part.CanCollide = data.canCollide
+                end
+            end
+        end)
     end
 end
-
 -- Функция движения к точке
 local function DriveTo(targetCFrame)
     if not targetCFrame or IsDriving then return end
