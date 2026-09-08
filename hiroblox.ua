@@ -133,6 +133,13 @@ local function RunBackwardRoute()
         if not (IsDriving or IsLooping) then break end
         if PointsBackward[i] then
             DriveToPoint(PointsBackward[i])
+            
+            -- На ТОЧКЕ 8 НАЗАД: Зажатие E на 1.5 секунды
+            if i == 8 then
+                task.wait(0.3)
+                HoldE(1.5, 1)
+                task.wait(0.3)
+            end
         end
     end
 end
