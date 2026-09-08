@@ -99,7 +99,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     else
         ScrollFrame.Visible = true
         MainFrame.Size = UDim2.new(0, 220, 0, 300)
-        ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
+        ToggleBtn.Text = "🚗 AUTOFARM MENU 3 [ — ]"
     end
 end)
 
