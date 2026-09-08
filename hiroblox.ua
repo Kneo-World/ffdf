@@ -26,7 +26,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Функция ЗАЖАТИЯ клавиши E на определенное время
+-- Функция ЗАЖАТИЯ клавиши E
 local function HoldE(holdTime, times)
     times = times or 1
     holdTime = holdTime or 1.5
@@ -39,7 +39,7 @@ local function HoldE(holdTime, times)
     end
 end
 
--- Плавный метод езды на машине (без ТП)
+-- Плавный метод езды
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     
@@ -117,11 +117,30 @@ local function RunForwardRoute()
                     task.wait(0.8)
                 end
                 
-            -- На ТОЧКЕ 10: Сдача груза
+            -- На ТОЧКЕ 10: Вылезти, сдавать (E 1.5 сек), сесть обратно
             elseif i == 10 then
-                task.wait(0.3)
-                HoldE(1.5, 1)
-                task.wait(0.3)
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hum and hum.SeatPart and hrp then
+                    local vehicleSeat = hum.SeatPart
+                    
+                    hum.Jump = true
+                    task.wait(0.3)
+                    
+                    hrp.CFrame = PointsForward[10] + Vector3.new(0, 2, 0)
+                    task.wait(0.3)
+                    
+                    HoldE(1.5, 1)
+                    task.wait(0.3)
+                    
+                    hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
+                    task.wait(0.3)
+                    
+                    HoldE(0.2, 1)
+                    task.wait(0.8)
+                end
             end
         end
     end
@@ -134,7 +153,7 @@ local function RunBackwardRoute()
         if PointsBackward[i] then
             DriveToPoint(PointsBackward[i])
             
-            -- На ТОЧКЕ 8 НАЗАД: Зажатие E на 1.5 секунды
+            -- На ТОЧКЕ 8 НАЗАД: Зажатие E на 1.5 секунды (прямо из машины)
             if i == 8 then
                 task.wait(0.3)
                 HoldE(1.5, 1)
