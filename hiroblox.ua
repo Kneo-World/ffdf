@@ -1,4 +1,4 @@
--- ИСПРАВЛЕННЫЙ СКРИПТ (С ФИКСOМ ОБРАТНОГО ПУТИ)
+-- ОБНОВЛЕННЫЙ СКРИПТ С ДВОЙНЫМ ТЕЛЕПОРТОМ К МАШИНЕ
 local PointsForward = {
     [1] = CFrame.new(6637.86, 62.69, -453.26),
     [2] = CFrame.new(6599.02, 64.56, -424.08),
@@ -72,7 +72,7 @@ local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGuiFixed"
+ScreenGui.Name = "CarAutoFarmGuiDoubleTp"
 
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -99,7 +99,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     else
         ScrollFrame.Visible = true
         MainFrame.Size = UDim2.new(0, 220, 0, 300)
-        ToggleBtn.Text = "🚗 AUTOFARM MENU 2 [ — ]"
+        ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
     end
 end)
 
@@ -140,6 +140,8 @@ local function AnchorVehicle(vehicleModel, anchorState)
     if not vehicleModel then return end
     for _, part in pairs(vehicleModel:GetDescendants()) do
         if part:IsA("BasePart") then
+            part.AssemblyLinearVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
             part.Anchored = anchorState
         end
     end
@@ -155,12 +157,14 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             local vehicleSeat = hum.SeatPart
             local vehicleModel = vehicleSeat.Parent
 
+            -- Полный стоп и заморозка тачки
             AnchorVehicle(vehicleModel, true)
             SetVehicleDetectorsEnabled(vehicleModel, false)
 
             hum.Jump = true
             task.wait(0.3)
             
+            -- Выходим в сторону на 6 студов
             hrp.CFrame = pointCFrame + Vector3.new(6, 2, 0)
             task.wait(0.3)
 
@@ -168,11 +172,19 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             HoldE(1.5, holdAmount)
             task.wait(0.3)
 
+            -- Возвращаем клик-детекторы
             SetVehicleDetectorsEnabled(vehicleModel, true)
-            AnchorVehicle(vehicleModel, false)
 
+            -- ТЕЛЕПОРТ 1: Возвращаемся в актуальную позицию сиденья
             hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
-            task.wait(0.3)
+            task.wait(0.15)
+
+            -- ТЕЛЕПОРТ 2: Повторный дожим прямо в сиденье на случай если авто сдвинулось
+            hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 1, 0)
+            task.wait(0.15)
+
+            -- Размораживаем авто и зажимаем E для посадки
+            AnchorVehicle(vehicleModel, false)
             HoldE(0.2, 1)
             task.wait(0.8)
         end
@@ -234,7 +246,6 @@ local function DriveToPoint(targetCFrame)
     return false
 end
 
--- Точный проход по всем 12 точкам вперёд
 local function RunForwardRoute()
     for i = 1, 20 do
         if not (IsDriving or IsLooping) then break end
@@ -247,7 +258,6 @@ local function RunForwardRoute()
     end
 end
 
--- Точный проход по всем 14 точкам назад
 local function RunBackwardRoute()
     for i = 1, 20 do
         if not (IsDriving or IsLooping) then break end
