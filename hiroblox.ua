@@ -3,18 +3,18 @@ local Frame = Instance.new("Frame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGui"
+ScreenGui.Name = "CarAutoFarmGui10"
 
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Position = UDim2.new(0.05, 0, 0.08, 0)
-Frame.Size = UDim2.new(0, 200, 0, 620)
+Frame.Position = UDim2.new(0.02, 0, 0.05, 0)
+Frame.Size = UDim2.new(0, 200, 0, 720)
 Frame.Active = true
 Frame.Draggable = true
 
 UIListLayout.Parent = Frame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 3)
+UIListLayout.Padding = UDim.new(0, 2)
 
 local PointsForward = {}
 local PointsBackward = {}
@@ -26,22 +26,20 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Функция ЗАЖАТИЯ клавиши E на определенное время (в секундах)
+-- Функция ЗАЖАТИЯ клавиши E на определенное время
 local function HoldE(holdTime, times)
     times = times or 1
     holdTime = holdTime or 1.5
     
     for i = 1, times do
-        -- Зажимаем клавишу E
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(holdTime) -- Держим 1.5 секунды
-        -- Отпускаем клавишу E
+        task.wait(holdTime)
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
         task.wait(0.3)
     end
 end
 
--- Плавный метод езды на машине
+-- Плавный метод езды на машине (без ТП)
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     
@@ -86,16 +84,15 @@ local function DriveToPoint(targetCFrame)
     return false
 end
 
--- Маршрут ВПРЕД
+-- Маршрут ВПРЕД (1..10)
 local function RunForwardRoute()
-    for i = 1, 6 do
+    for i = 1, 10 do
         if not (IsDriving or IsLooping) then break end
         if PointsForward[i] then
             
-            -- Обычная езда до точки
             DriveToPoint(PointsForward[i])
             
-            -- Спец-действие на ТОЧКЕ 1 (Вылезти, зажать E 5 раз, сесть обратно)
+            -- На ТОЧКЕ 1: Вылезти, зажать E 5 раз, сесть обратно
             if i == 1 then
                 local char = LocalPlayer.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -104,31 +101,25 @@ local function RunForwardRoute()
                 if hum and hum.SeatPart and hrp then
                     local vehicleSeat = hum.SeatPart
                     
-                    -- 1. Выпрыгиваем из машины
                     hum.Jump = true
                     task.wait(0.3)
                     
-                    -- 2. ТП к точке взятия предмета
                     hrp.CFrame = PointsForward[1] + Vector3.new(0, 2, 0)
                     task.wait(0.3)
                     
-                    -- 3. ЗАЖИМАЕМ E по 1.5 секунды — 5 раз
                     HoldE(1.5, 5)
                     task.wait(0.3)
                     
-                    -- 4. ТП обратно к машине
                     hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
                     task.wait(0.3)
                     
-                    -- 5. Нажимаем E быстро (0.2 сек) чтобы сесть в машину
                     HoldE(0.2, 1)
                     task.wait(0.8)
                 end
                 
-            -- Спец-действие на ТОЧКЕ 6 (Сдача)
-            elseif i == 6 then
+            -- На ТОЧКЕ 10: Сдача груза
+            elseif i == 10 then
                 task.wait(0.3)
-                -- Зажимаем E на 1.5 секунды для сдачи
                 HoldE(1.5, 1)
                 task.wait(0.3)
             end
@@ -136,9 +127,9 @@ local function RunForwardRoute()
     end
 end
 
--- Маршрут НАЗАД
+-- Маршрут НАЗАД (1..10)
 local function RunBackwardRoute()
-    for i = 1, 6 do
+    for i = 1, 10 do
         if not (IsDriving or IsLooping) then break end
         if PointsBackward[i] then
             DriveToPoint(PointsBackward[i])
@@ -172,34 +163,34 @@ end
 local function CreateButton(text, color, callback)
     local btn = Instance.new("TextButton")
     btn.Parent = Frame
-    btn.Size = UDim2.new(1, -10, 0, 19)
+    btn.Size = UDim2.new(1, -10, 0, 18)
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 11
+    btn.TextSize = 10
     btn.MouseButton1Click:Connect(callback)
     return btn
 end
 
--- Ввод скорости
+-- Поле ввода скорости
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Parent = Frame
-SpeedInput.Size = UDim2.new(1, -10, 0, 20)
+SpeedInput.Size = UDim2.new(1, -10, 0, 18)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedInput.PlaceholderText = "Скорость (80-120)"
 SpeedInput.Text = "100"
 SpeedInput.Font = Enum.Font.SourceSans
-SpeedInput.TextSize = 12
+SpeedInput.TextSize = 11
 
 SpeedInput.FocusLost:Connect(function()
     local val = tonumber(SpeedInput.Text)
     if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
--- Сохранение 6 точек ВПРЕД
-for i = 1, 6 do
+-- Сохранение 10 точек ВПРЕД
+for i = 1, 10 do
     CreateButton("Сохранить Вперед " .. i, Color3.fromRGB(40, 110, 50), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             PointsForward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -207,8 +198,8 @@ for i = 1, 6 do
     end)
 end
 
--- Сохранение 6 точек НАЗАД
-for i = 1, 6 do
+-- Сохранение 10 точек НАЗАД
+for i = 1, 10 do
     CreateButton("Сохранить Назад " .. i, Color3.fromRGB(120, 80, 40), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             PointsBackward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
@@ -216,7 +207,7 @@ for i = 1, 6 do
     end)
 end
 
--- Кнопки разового проезда
+-- Разовый проезд
 CreateButton("▶ ЕХАТЬ ВПРЕД (1 РАЗ)", Color3.fromRGB(50, 100, 180), function()
     if IsLooping or IsDriving then return end
     IsDriving = true
@@ -235,7 +226,7 @@ CreateButton("◀ ЕХАТЬ НАЗАД (1 РАЗ)", Color3.fromRGB(150, 80, 150
     end)
 end)
 
--- Переключатель зацикливания
+-- Зацикливание
 local LoopBtn
 LoopBtn = CreateButton("🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄", Color3.fromRGB(180, 50, 50), function()
     IsLooping = not IsLooping
