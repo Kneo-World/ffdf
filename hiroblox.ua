@@ -26,17 +26,22 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Функция авто-нажатия E
-local function PressE(times, delayTime)
+-- Функция ЗАЖАТИЯ клавиши E на определенное время (в секундах)
+local function HoldE(holdTime, times)
+    times = times or 1
+    holdTime = holdTime or 1.5
+    
     for i = 1, times do
+        -- Зажимаем клавишу E
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        task.wait(0.05)
+        task.wait(holdTime) -- Держим 1.5 секунды
+        -- Отпускаем клавишу E
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-        task.wait(delayTime or 0.3)
+        task.wait(0.3)
     end
 end
 
--- Плавный метод езды (на машине)
+-- Плавный метод езды на машине
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     
@@ -90,7 +95,7 @@ local function RunForwardRoute()
             -- Обычная езда до точки
             DriveToPoint(PointsForward[i])
             
-            -- Спец-действие на ТОЧКЕ 1 (Вылезти, взять предметы, сесть)
+            -- Спец-действие на ТОЧКЕ 1 (Вылезти, зажать E 5 раз, сесть обратно)
             if i == 1 then
                 local char = LocalPlayer.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -107,23 +112,24 @@ local function RunForwardRoute()
                     hrp.CFrame = PointsForward[1] + Vector3.new(0, 2, 0)
                     task.wait(0.3)
                     
-                    -- 3. Жмем E 5 раз для взятия
-                    PressE(5, 0.4)
+                    -- 3. ЗАЖИМАЕМ E по 1.5 секунды — 5 раз
+                    HoldE(1.5, 5)
                     task.wait(0.3)
                     
-                    -- 4. ТП обратно вплотную к сиденью машины
+                    -- 4. ТП обратно к машине
                     hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
                     task.wait(0.3)
                     
-                    -- 5. Жмем E чтобы сесть обратно за руль
-                    PressE(1, 0.4)
-                    task.wait(0.8) -- задержка на посадку
+                    -- 5. Нажимаем E быстро (0.2 сек) чтобы сесть в машину
+                    HoldE(0.2, 1)
+                    task.wait(0.8)
                 end
                 
-            -- Спец-действие на ТОЧКЕ 6 (Сдача груза из машины)
+            -- Спец-действие на ТОЧКЕ 6 (Сдача)
             elseif i == 6 then
                 task.wait(0.3)
-                PressE(1, 0.4)
+                -- Зажимаем E на 1.5 секунды для сдачи
+                HoldE(1.5, 1)
                 task.wait(0.3)
             end
         end
