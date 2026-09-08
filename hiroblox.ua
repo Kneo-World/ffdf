@@ -1,4 +1,4 @@
--- ОБНОВЛЕННЫЙ СКРИПТ С ДВОЙНЫМ ТЕЛЕПОРТОМ К МАШИНЕ
+-- ОБНОВЛЕННЫЙ СКРИПТ (ВЫСАДКА ВУПОР К ТОЧКЕ E)
 local PointsForward = {
     [1] = CFrame.new(6637.86, 62.69, -453.26),
     [2] = CFrame.new(6599.02, 64.56, -424.08),
@@ -72,7 +72,7 @@ local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGuiDoubleTp"
+ScreenGui.Name = "CarAutoFarmGuiCloseE"
 
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -157,33 +157,29 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             local vehicleSeat = hum.SeatPart
             local vehicleModel = vehicleSeat.Parent
 
-            -- Полный стоп и заморозка тачки
             AnchorVehicle(vehicleModel, true)
             SetVehicleDetectorsEnabled(vehicleModel, false)
 
             hum.Jump = true
             task.wait(0.3)
             
-            -- Выходим в сторону на 6 студов
-            hrp.CFrame = pointCFrame + Vector3.new(6, 2, 0)
+            -- Выходим вплотную к точке E (всего 2 студа высоты/сдвига)
+            hrp.CFrame = pointCFrame + Vector3.new(0, 2, 0)
             task.wait(0.3)
 
             local holdAmount = (actionType == "Exit_HoldE5") and 5 or 1
             HoldE(1.5, holdAmount)
             task.wait(0.3)
 
-            -- Возвращаем клик-детекторы
             SetVehicleDetectorsEnabled(vehicleModel, true)
 
-            -- ТЕЛЕПОРТ 1: Возвращаемся в актуальную позицию сиденья
+            -- Двойной телепорт прямо в сиденье машины
             hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
             task.wait(0.15)
 
-            -- ТЕЛЕПОРТ 2: Повторный дожим прямо в сиденье на случай если авто сдвинулось
             hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 1, 0)
             task.wait(0.15)
 
-            -- Размораживаем авто и зажимаем E для посадки
             AnchorVehicle(vehicleModel, false)
             HoldE(0.2, 1)
             task.wait(0.8)
