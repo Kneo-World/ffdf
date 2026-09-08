@@ -1,4 +1,4 @@
--- ГОТОВЫЙ С КОРРЕКТИРОВКАМИ
+-- ИСПРАВЛЕННЫЙ СКРИПТ (С ФИКСOМ ОБРАТНОГО ПУТИ)
 local PointsForward = {
     [1] = CFrame.new(6637.86, 62.69, -453.26),
     [2] = CFrame.new(6599.02, 64.56, -424.08),
@@ -47,9 +47,8 @@ local IsLooping = false
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local RunService = game:GetService("RunService")
 
--- === БЕССМЕРТИЕ (GODMODE) ===
+-- Бессмертие
 task.spawn(function()
     while true do
         task.wait(0.2)
@@ -73,7 +72,7 @@ local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGuiGod"
+ScreenGui.Name = "CarAutoFarmGuiFixed"
 
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -126,7 +125,6 @@ local function HoldE(holdTime, times)
     end
 end
 
--- Переключение кликдетекторов и проксі-промптов машины
 local function SetVehicleDetectorsEnabled(vehicleModel, enabled)
     if not vehicleModel then return end
     for _, desc in pairs(vehicleModel:GetDescendants()) do
@@ -157,14 +155,12 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             local vehicleSeat = hum.SeatPart
             local vehicleModel = vehicleSeat.Parent
 
-            -- Замораживаем авто и отключаем его ClickDetector'ы
             AnchorVehicle(vehicleModel, true)
             SetVehicleDetectorsEnabled(vehicleModel, false)
 
             hum.Jump = true
             task.wait(0.3)
             
-            -- Выходим немного в сторону (на 6 студов), чтобы не залипать в коллизиях
             hrp.CFrame = pointCFrame + Vector3.new(6, 2, 0)
             task.wait(0.3)
 
@@ -172,7 +168,6 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             HoldE(1.5, holdAmount)
             task.wait(0.3)
 
-            -- Возвращаем детекторы и телепортируем обратно в сиденье
             SetVehicleDetectorsEnabled(vehicleModel, true)
             AnchorVehicle(vehicleModel, false)
 
@@ -211,7 +206,7 @@ local function DriveToPoint(targetCFrame)
         local targetPos = targetCFrame.Position
         local distance = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Magnitude
 
-        if distance < 10 then
+        if distance < 12 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
             primaryPart.AssemblyAngularVelocity = Vector3.zero
             return true
@@ -239,8 +234,9 @@ local function DriveToPoint(targetCFrame)
     return false
 end
 
+-- Точный проход по всем 12 точкам вперёд
 local function RunForwardRoute()
-    for i = 1, #PointsForward do
+    for i = 1, 20 do
         if not (IsDriving or IsLooping) then break end
         if PointsForward[i] then
             DriveToPoint(PointsForward[i])
@@ -251,8 +247,9 @@ local function RunForwardRoute()
     end
 end
 
+-- Точный проход по всем 14 точкам назад
 local function RunBackwardRoute()
-    for i = 1, #PointsBackward do
+    for i = 1, 20 do
         if not (IsDriving or IsLooping) then break end
         if PointsBackward[i] then
             DriveToPoint(PointsBackward[i])
@@ -267,11 +264,11 @@ local function StartAutoFarmLoop()
     while IsLooping do
         RunForwardRoute()
         if not IsLooping then break end
-        task.wait(0.5)
+        task.wait(1)
         
         RunBackwardRoute()
         if not IsLooping then break end
-        task.wait(0.5)
+        task.wait(1)
     end
 end
 
