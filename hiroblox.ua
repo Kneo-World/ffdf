@@ -1,25 +1,57 @@
 local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
+local MainFrame = Instance.new("Frame")
+local ToggleBtn = Instance.new("TextButton")
+local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGuiCustom"
+ScreenGui.Name = "CarAutoFarmGuiCompact"
 
-Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Frame.Position = UDim2.new(0.02, 0, 0.05, 0)
-Frame.Size = UDim2.new(0, 210, 0, 850)
-Frame.Active = true
-Frame.Draggable = true
+-- Главная рамка
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.02, 0, 0.1, 0)
+MainFrame.Size = UDim2.new(0, 220, 0, 300)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-UIListLayout.Parent = Frame
+-- Кнопка свернуть/развернуть
+ToggleBtn.Parent = MainFrame
+ToggleBtn.Size = UDim2.new(1, 0, 0, 20)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 12
+
+local IsMinimized = false
+ToggleBtn.MouseButton1Click:Connect(function()
+    IsMinimized = not IsMinimized
+    if IsMinimized then
+        ScrollFrame.Visible = false
+        MainFrame.Size = UDim2.new(0, 220, 0, 20)
+        ToggleBtn.Text = "🚗 AUTOFARM MENU [ + ]"
+    else
+        ScrollFrame.Visible = true
+        MainFrame.Size = UDim2.new(0, 220, 0, 300)
+        ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
+    end
+end)
+
+-- Скролл контейнер для всех элементов
+ScrollFrame.Parent = MainFrame
+ScrollFrame.Position = UDim2.new(0, 0, 0, 22)
+ScrollFrame.Size = UDim2.new(1, 0, 1, -22)
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1100) -- прокрутка вниз
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+
+UIListLayout.Parent = ScrollFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 2)
 
 local PointsForward = {}
 local PointsBackward = {}
-
--- Настройки действий: [индекс] = "Action1", "Action2" или "Action3"
 local ActionsForward = {}
 local ActionsBackward = {}
 
@@ -42,14 +74,12 @@ local function HoldE(holdTime, times)
     end
 end
 
--- Логика выполнения кастомных действий
 local function ExecuteCustomAction(actionType, pointCFrame)
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
     if actionType == "Exit_HoldE5" then
-        -- Вылезти, зажать E 5 раз, сесть
         if hum and hum.SeatPart and hrp then
             local vehicleSeat = hum.SeatPart
             hum.Jump = true
@@ -63,9 +93,7 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             HoldE(0.2, 1)
             task.wait(0.8)
         end
-
     elseif actionType == "Exit_HoldE1" then
-        -- Вылезти, зажать E 1 раз, сесть
         if hum and hum.SeatPart and hrp then
             local vehicleSeat = hum.SeatPart
             hum.Jump = true
@@ -79,16 +107,13 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             HoldE(0.2, 1)
             task.wait(0.8)
         end
-
     elseif actionType == "Drive_HoldE1" then
-        -- Просто зажать E 1.5 сек (в машине)
         task.wait(0.3)
         HoldE(1.5, 1)
         task.wait(0.3)
     end
 end
 
--- Езда с защитой от застревания
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     local character = LocalPlayer.Character
@@ -178,8 +203,8 @@ end
 
 local function CreateButton(text, color, callback)
     local btn = Instance.new("TextButton")
-    btn.Parent = Frame
-    btn.Size = UDim2.new(1, -10, 0, 16)
+    btn.Parent = ScrollFrame
+    btn.Size = UDim2.new(1, -12, 0, 18)
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
@@ -189,10 +214,34 @@ local function CreateButton(text, color, callback)
     return btn
 end
 
--- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ НАСТРОЙКОЙ ДЕЙСТВИЙ
+-- Управление циклированием и стопом вверху
+local LoopBtn
+LoopBtn = CreateButton("🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄", Color3.fromRGB(180, 50, 50), function()
+    IsLooping = not IsLooping
+    if IsLooping then
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        task.spawn(StartAutoFarmLoop)
+    else
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        IsDriving = false
+    end
+end)
+
+CreateButton("⛔ СТОП ВСЕ ⛔", Color3.fromRGB(120, 30, 30), function()
+    IsLooping = false
+    IsDriving = false
+    if LoopBtn then
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
+end)
+
+-- Настройка действий
 local PointNumInput = Instance.new("TextBox")
-PointNumInput.Parent = Frame
-PointNumInput.Size = UDim2.new(1, -10, 0, 16)
+PointNumInput.Parent = ScrollFrame
+PointNumInput.Size = UDim2.new(1, -12, 0, 18)
 PointNumInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 PointNumInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 PointNumInput.PlaceholderText = "Номер точки (1-20)"
@@ -211,7 +260,6 @@ CreateButton("🚶 ВЫЛЕЗТИ + E (x5) + СЕСТЬ", Color3.fromRGB(130, 60
     local p = tonumber(PointNumInput.Text)
     if p and p >= 1 and p <= 20 then
         if IsForward then ActionsForward[p] = "Exit_HoldE5" else ActionsBackward[p] = "Exit_HoldE5" end
-        print("На точку " .. p .. " (" .. (IsForward and "Вперед" or "Назад") .. ") назначено: Вылезти + E x5")
     end
 end)
 
@@ -219,7 +267,6 @@ CreateButton("🚶 ВЫЛЕЗТИ + E (x1) + СЕСТЬ", Color3.fromRGB(100, 60
     local p = tonumber(PointNumInput.Text)
     if p and p >= 1 and p <= 20 then
         if IsForward then ActionsForward[p] = "Exit_HoldE1" else ActionsBackward[p] = "Exit_HoldE1" end
-        print("На точку " .. p .. " (" .. (IsForward and "Вперед" or "Назад") .. ") назначено: Вылезти + E x1")
     end
 end)
 
@@ -227,48 +274,40 @@ CreateButton("🚗 ПРОСТО E (x1)", Color3.fromRGB(60, 100, 150), function(
     local p = tonumber(PointNumInput.Text)
     if p and p >= 1 and p <= 20 then
         if IsForward then ActionsForward[p] = "Drive_HoldE1" else ActionsBackward[p] = "Drive_HoldE1" end
-        print("На точку " .. p .. " (" .. (IsForward and "Вперед" or "Назад") .. ") назначено: Просто E")
     end
 end)
 
--- СКОПИРОВАТЬ ВСЁ В КЛИПБОРД
-CreateButton("📋 СКОПИРОВАТЬ СКРИПТ В КЛИПБОРД 📋", Color3.fromRGB(200, 140, 0), function()
-    local str = "-- ПОЛНЫЙ СКРИПТ С ТОЧКАМИ И ДЕЙСТВИЯМИ\n"
-    str = str .. "local PointsForward = {\n"
+CreateButton("📋 СКОПИРОВАТЬ В КЛИПБОРД 📋", Color3.fromRGB(200, 140, 0), function()
+    local str = "local PointsForward = {\n"
     for i = 1, 20 do
         if PointsForward[i] then
             local cf = PointsForward[i]
             str = str .. string.format("    [%d] = CFrame.new(%.2f, %.2f, %.2f),\n", i, cf.X, cf.Y, cf.Z)
         end
     end
-    str = str .. "}\n\nlocal PointsBackward = {\n"
+    str = str .. "}\nlocal PointsBackward = {\n"
     for i = 1, 20 do
         if PointsBackward[i] then
             local cf = PointsBackward[i]
             str = str .. string.format("    [%d] = CFrame.new(%.2f, %.2f, %.2f),\n", i, cf.X, cf.Y, cf.Z)
         end
     end
-    str = str .. "}\n\nlocal ActionsForward = {\n"
+    str = str .. "}\nlocal ActionsForward = {\n"
     for i, act in pairs(ActionsForward) do
         str = str .. string.format("    [%d] = %q,\n", i, act)
     end
-    str = str .. "}\n\nlocal ActionsBackward = {\n"
+    str = str .. "}\nlocal ActionsBackward = {\n"
     for i, act in pairs(ActionsBackward) do
         str = str .. string.format("    [%d] = %q,\n", i, act)
     end
     str = str .. "}\n"
     
-    if setclipboard then
-        setclipboard(str)
-        print("Полный скрипт скопирован в буфер!")
-    else
-        print(str)
-    end
+    if setclipboard then setclipboard(str) else print(str) end
 end)
 
 -- Сохранение точек
 for i = 1, 20 do
-    CreateButton("Вперед " .. i, Color3.fromRGB(40, 110, 50), function()
+    CreateButton("Сохранить Вперед " .. i, Color3.fromRGB(40, 110, 50), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             PointsForward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
         end
@@ -276,33 +315,9 @@ for i = 1, 20 do
 end
 
 for i = 1, 20 do
-    CreateButton("Назад " .. i, Color3.fromRGB(120, 80, 40), function()
+    CreateButton("Сохранить Назад " .. i, Color3.fromRGB(120, 80, 40), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             PointsBackward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
         end
     end)
 end
-
--- Зацикливание
-local LoopBtn
-LoopBtn = CreateButton("🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄", Color3.fromRGB(180, 50, 50), function()
-    IsLooping = not IsLooping
-    if IsLooping then
-        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВКЛ 🔄"
-        LoopBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
-        task.spawn(StartAutoFarmLoop)
-    else
-        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
-        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-        IsDriving = false
-    end
-end)
-
-CreateButton("⛔ СТОП ⛔", Color3.fromRGB(120, 30, 30), function()
-    IsLooping = false
-    IsDriving = false
-    if LoopBtn then
-        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
-        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-    end
-end)
