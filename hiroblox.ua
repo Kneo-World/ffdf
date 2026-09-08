@@ -1,4 +1,4 @@
--- ОБНОВЛЕННЫЙ СКРИПТ (ВЫСАДКА ВУПОР К ТОЧКЕ E)
+-- ПОЛНОСТЬЮ ИСПРАВЛЕННЫЙ СКРИПТ (БЕЗ БАГОВ НА 2-М КРУГЕ)
 local PointsForward = {
     [1] = CFrame.new(6637.86, 62.69, -453.26),
     [2] = CFrame.new(6599.02, 64.56, -424.08),
@@ -72,7 +72,7 @@ local ScrollFrame = Instance.new("ScrollingFrame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarAutoFarmGuiCloseE"
+ScreenGui.Name = "CarAutoFarmGuiFixed2"
 
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -85,7 +85,7 @@ ToggleBtn.Parent = MainFrame
 ToggleBtn.Size = UDim2.new(1, 0, 0, 20)
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
+ToggleBtn.Text = "🚗 AUTOFARM MENU 4 [ — ]"
 ToggleBtn.Font = Enum.Font.SourceSansBold
 ToggleBtn.TextSize = 12
 
@@ -99,7 +99,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
     else
         ScrollFrame.Visible = true
         MainFrame.Size = UDim2.new(0, 220, 0, 300)
-        ToggleBtn.Text = "🚗 AUTOFARM MENU 3 [ — ]"
+        ToggleBtn.Text = "🚗 AUTOFARM MENU [ — ]"
     end
 end)
 
@@ -163,7 +163,6 @@ local function ExecuteCustomAction(actionType, pointCFrame)
             hum.Jump = true
             task.wait(0.3)
             
-            -- Выходим вплотную к точке E (всего 2 студа высоты/сдвига)
             hrp.CFrame = pointCFrame + Vector3.new(0, 2, 0)
             task.wait(0.3)
 
@@ -173,7 +172,6 @@ local function ExecuteCustomAction(actionType, pointCFrame)
 
             SetVehicleDetectorsEnabled(vehicleModel, true)
 
-            -- Двойной телепорт прямо в сиденье машины
             hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
             task.wait(0.15)
 
@@ -207,7 +205,9 @@ local function DriveToPoint(targetCFrame)
     primaryPart.AssemblyAngularVelocity = Vector3.zero
     local startTime = tick()
     
-    while IsDriving or IsLooping do
+    IsDriving = true
+
+    while IsDriving and IsLooping do
         if not character or not humanoid.SeatPart then break end
         
         local currentPos = primaryPart.Position
@@ -217,6 +217,7 @@ local function DriveToPoint(targetCFrame)
         if distance < 12 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
             primaryPart.AssemblyAngularVelocity = Vector3.zero
+            IsDriving = false
             return true
         end
 
@@ -239,15 +240,16 @@ local function DriveToPoint(targetCFrame)
     
     primaryPart.AssemblyLinearVelocity = Vector3.zero
     primaryPart.AssemblyAngularVelocity = Vector3.zero
+    IsDriving = false
     return false
 end
 
 local function RunForwardRoute()
     for i = 1, 20 do
-        if not (IsDriving or IsLooping) then break end
+        if not IsLooping then break end
         if PointsForward[i] then
             DriveToPoint(PointsForward[i])
-            if ActionsForward[i] then
+            if ActionsForward[i] and IsLooping then
                 ExecuteCustomAction(ActionsForward[i], PointsForward[i])
             end
         end
@@ -256,10 +258,10 @@ end
 
 local function RunBackwardRoute()
     for i = 1, 20 do
-        if not (IsDriving or IsLooping) then break end
+        if not IsLooping then break end
         if PointsBackward[i] then
             DriveToPoint(PointsBackward[i])
-            if ActionsBackward[i] then
+            if ActionsBackward[i] and IsLooping then
                 ExecuteCustomAction(ActionsBackward[i], PointsBackward[i])
             end
         end
@@ -270,11 +272,11 @@ local function StartAutoFarmLoop()
     while IsLooping do
         RunForwardRoute()
         if not IsLooping then break end
-        task.wait(1)
+        task.wait(1.5)
         
         RunBackwardRoute()
         if not IsLooping then break end
-        task.wait(1)
+        task.wait(1.5)
     end
 end
 
