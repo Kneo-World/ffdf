@@ -3,7 +3,7 @@ local Frame = Instance.new("Frame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarSmoothAutoFarmGui"
+ScreenGui.Name = "CarAutoFarmGui"
 
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -36,7 +36,7 @@ local function PressE(times, delayTime)
     end
 end
 
--- ТОТ САМЫЙ ПЛАВНЫЙ МЕТОД ЕЗДЫ (без телепортов)
+-- Плавный метод езды (на машине)
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     
@@ -51,7 +51,6 @@ local function DriveToPoint(targetCFrame)
     local primaryPart = vehicleModel.PrimaryPart or vehicleSeat
 
     local speed = tonumber(DriveSpeed) or 100
-    
     primaryPart.AssemblyAngularVelocity = Vector3.zero
     
     while IsDriving or IsLooping do
@@ -61,7 +60,6 @@ local function DriveToPoint(targetCFrame)
         local targetPos = targetCFrame.Position
         local distance = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Magnitude
 
-        -- Подъехали к точке
         if distance < 10 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
             primaryPart.AssemblyAngularVelocity = Vector3.zero
@@ -69,12 +67,9 @@ local function DriveToPoint(targetCFrame)
         end
 
         local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
-        
-        -- Плавный разворот кузова (Lerp)
         local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
-        primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.2)
         
-        -- Физический импульс разгона
+        primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.2)
         primaryPart.AssemblyAngularVelocity = Vector3.zero
         primaryPart.AssemblyLinearVelocity = (direction * speed) + Vector3.new(0, 1, 0)
 
@@ -86,19 +81,46 @@ local function DriveToPoint(targetCFrame)
     return false
 end
 
--- Маршрут ВПРЕД (Точки 1..6)
+-- Маршрут ВПРЕД
 local function RunForwardRoute()
     for i = 1, 6 do
         if not (IsDriving or IsLooping) then break end
         if PointsForward[i] then
+            
+            -- Обычная езда до точки
             DriveToPoint(PointsForward[i])
             
-            -- На 1-й точке берем груз (5 раз E)
+            -- Спец-действие на ТОЧКЕ 1 (Вылезти, взять предметы, сесть)
             if i == 1 then
-                task.wait(0.3)
-                PressE(5, 0.4)
-                task.wait(0.3)
-            -- На 6-й точке сдаем груз (1 раз E)
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hum and hum.SeatPart and hrp then
+                    local vehicleSeat = hum.SeatPart
+                    
+                    -- 1. Выпрыгиваем из машины
+                    hum.Jump = true
+                    task.wait(0.3)
+                    
+                    -- 2. ТП к точке взятия предмета
+                    hrp.CFrame = PointsForward[1] + Vector3.new(0, 2, 0)
+                    task.wait(0.3)
+                    
+                    -- 3. Жмем E 5 раз для взятия
+                    PressE(5, 0.4)
+                    task.wait(0.3)
+                    
+                    -- 4. ТП обратно вплотную к сиденью машины
+                    hrp.CFrame = vehicleSeat.CFrame + Vector3.new(0, 2, 0)
+                    task.wait(0.3)
+                    
+                    -- 5. Жмем E чтобы сесть обратно за руль
+                    PressE(1, 0.4)
+                    task.wait(0.8) -- задержка на посадку
+                end
+                
+            -- Спец-действие на ТОЧКЕ 6 (Сдача груза из машины)
             elseif i == 6 then
                 task.wait(0.3)
                 PressE(1, 0.4)
@@ -108,7 +130,7 @@ local function RunForwardRoute()
     end
 end
 
--- Маршрут НАЗАД (Точки 1..6)
+-- Маршрут НАЗАД
 local function RunBackwardRoute()
     for i = 1, 6 do
         if not (IsDriving or IsLooping) then break end
@@ -130,7 +152,6 @@ local function StartAutoFarmLoop()
         task.wait(0.5)
     end
     
-    -- Сброс движения при выключении
     local character = LocalPlayer.Character
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -155,7 +176,7 @@ local function CreateButton(text, color, callback)
     return btn
 end
 
--- Поле ввода скорости
+-- Ввод скорости
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Parent = Frame
 SpeedInput.Size = UDim2.new(1, -10, 0, 20)
@@ -171,7 +192,7 @@ SpeedInput.FocusLost:Connect(function()
     if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
--- Кнопки сохранения 6 точек ВПРЕД
+-- Сохранение 6 точек ВПРЕД
 for i = 1, 6 do
     CreateButton("Сохранить Вперед " .. i, Color3.fromRGB(40, 110, 50), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -180,7 +201,7 @@ for i = 1, 6 do
     end)
 end
 
--- Кнопки сохранения 6 точек НАЗАД
+-- Сохранение 6 точек НАЗАД
 for i = 1, 6 do
     CreateButton("Сохранить Назад " .. i, Color3.fromRGB(120, 80, 40), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
