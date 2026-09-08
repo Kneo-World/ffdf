@@ -3,80 +3,40 @@ local Frame = Instance.new("Frame")
 local UIListLayout = Instance.new("UIListLayout")
 
 ScreenGui.Parent = game.CoreGui
-ScreenGui.Name = "CarBoostWaypoints"
+ScreenGui.Name = "CarSmoothAutoFarmGui"
 
 Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Frame.Position = UDim2.new(0.05, 0, 0.15, 0)
-Frame.Size = UDim2.new(0, 190, 0, 520)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Position = UDim2.new(0.05, 0, 0.08, 0)
+Frame.Size = UDim2.new(0, 200, 0, 620)
 Frame.Active = true
 Frame.Draggable = true
 
 UIListLayout.Parent = Frame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 4)
+UIListLayout.Padding = UDim.new(0, 3)
 
--- Массив под 8 точек
-local Points = {}
+local PointsForward = {}
+local PointsBackward = {}
 local DriveSpeed = 100
 local IsDriving = false
+local IsLooping = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- Функция подъёма машины через отключение Collider колес
-local function LiftVehicle()
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid or not humanoid.SeatPart then return end
-    
-    local vehicleSeat = humanoid.SeatPart
-    local vehicleModel = vehicleSeat.Parent
-    
-    local colliders = {}
-    local wheelsFolder = vehicleModel:FindFirstChild("Wheels") or vehicleModel:FindFirstChild("wheels")
-    
-    if wheelsFolder then
-        for _, wheel in pairs(wheelsFolder:GetChildren()) do
-            local collider = wheel:FindFirstChild("Collider") or wheel:FindFirstChild("collider")
-            if collider and collider:IsA("BasePart") then
-                table.insert(colliders, collider)
-            end
-        end
-    else
-        for _, part in pairs(vehicleModel:GetDescendants()) do
-            if part.Name == "Collider" and part:IsA("BasePart") then
-                table.insert(colliders, part)
-            end
-        end
-    end
-    
-    for _, collider in pairs(colliders) do
-        collider.CanCollide = false
-        collider.AssemblyLinearVelocity = Vector3.zero
-        collider.AssemblyAngularVelocity = Vector3.zero
-    end
-    
-    if vehicleModel.PrimaryPart then
-        vehicleModel.PrimaryPart.AssemblyLinearVelocity = Vector3.zero
-        vehicleModel.PrimaryPart.AssemblyAngularVelocity = Vector3.zero
-    end
-
-    local currentPivot = vehicleModel:GetPivot()
-    vehicleModel:PivotTo(currentPivot + Vector3.new(0, 6, 0))
-    
-    task.wait(0.3)
-    
-    for _, collider in pairs(colliders) do
-        if collider and collider.Parent then
-            collider.CanCollide = true
-        end
+-- Функция авто-нажатия E
+local function PressE(times, delayTime)
+    for i = 1, times do
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        task.wait(delayTime or 0.3)
     end
 end
 
--- Функция движения к ОДНОЙ конкретной точке
+-- ТОТ САМЫЙ ПЛАВНЫЙ МЕТОД ЕЗДЫ (без телепортов)
 local function DriveToPoint(targetCFrame)
     if not targetCFrame then return false end
     
@@ -92,44 +52,85 @@ local function DriveToPoint(targetCFrame)
 
     local speed = tonumber(DriveSpeed) or 100
     
-    while IsDriving do
+    primaryPart.AssemblyAngularVelocity = Vector3.zero
+    
+    while IsDriving or IsLooping do
         if not character or not humanoid.SeatPart then break end
         
         local currentPos = primaryPart.Position
         local targetPos = targetCFrame.Position
         local distance = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Magnitude
 
+        -- Подъехали к точке
         if distance < 10 then
             primaryPart.AssemblyLinearVelocity = Vector3.zero
             primaryPart.AssemblyAngularVelocity = Vector3.zero
-            return true -- Успешно доехали до точки
+            return true
         end
 
         local direction = (Vector3.new(targetPos.X, currentPos.Y, targetPos.Z) - currentPos).Unit
-        local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
         
+        -- Плавный разворот кузова (Lerp)
+        local targetRot = CFrame.new(primaryPart.Position, primaryPart.Position + direction)
         primaryPart.CFrame = primaryPart.CFrame:Lerp(targetRot, 0.2)
+        
+        -- Физический импульс разгона
         primaryPart.AssemblyAngularVelocity = Vector3.zero
         primaryPart.AssemblyLinearVelocity = (direction * speed) + Vector3.new(0, 1, 0)
 
         task.wait(0.03)
     end
     
+    primaryPart.AssemblyLinearVelocity = Vector3.zero
+    primaryPart.AssemblyAngularVelocity = Vector3.zero
     return false
 end
 
--- Функция последовательного маршрута по нескольким точкам
-local function DriveRoute(routePointIndexes)
-    if IsDriving then return end
-    IsDriving = true
-    
-    for _, idx in ipairs(routePointIndexes) do
-        if not IsDriving then break end
-        if Points[idx] then
-            DriveToPoint(Points[idx])
+-- Маршрут ВПРЕД (Точки 1..6)
+local function RunForwardRoute()
+    for i = 1, 6 do
+        if not (IsDriving or IsLooping) then break end
+        if PointsForward[i] then
+            DriveToPoint(PointsForward[i])
+            
+            -- На 1-й точке берем груз (5 раз E)
+            if i == 1 then
+                task.wait(0.3)
+                PressE(5, 0.4)
+                task.wait(0.3)
+            -- На 6-й точке сдаем груз (1 раз E)
+            elseif i == 6 then
+                task.wait(0.3)
+                PressE(1, 0.4)
+                task.wait(0.3)
+            end
         end
     end
+end
+
+-- Маршрут НАЗАД (Точки 1..6)
+local function RunBackwardRoute()
+    for i = 1, 6 do
+        if not (IsDriving or IsLooping) then break end
+        if PointsBackward[i] then
+            DriveToPoint(PointsBackward[i])
+        end
+    end
+end
+
+-- Бесконечный цикл фарма
+local function StartAutoFarmLoop()
+    while IsLooping do
+        RunForwardRoute()
+        if not IsLooping then break end
+        task.wait(0.5)
+        
+        RunBackwardRoute()
+        if not IsLooping then break end
+        task.wait(0.5)
+    end
     
+    -- Сброс движения при выключении
     local character = LocalPlayer.Character
     if character then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -139,26 +140,25 @@ local function DriveRoute(routePointIndexes)
             primaryPart.AssemblyAngularVelocity = Vector3.zero
         end
     end
-    
-    IsDriving = false
 end
 
 local function CreateButton(text, color, callback)
     local btn = Instance.new("TextButton")
     btn.Parent = Frame
-    btn.Size = UDim2.new(1, -10, 0, 22)
+    btn.Size = UDim2.new(1, -10, 0, 19)
     btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.Text = text
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 12
+    btn.TextSize = 11
     btn.MouseButton1Click:Connect(callback)
+    return btn
 end
 
--- Ввод скорости
+-- Поле ввода скорости
 local SpeedInput = Instance.new("TextBox")
 SpeedInput.Parent = Frame
-SpeedInput.Size = UDim2.new(1, -10, 0, 22)
+SpeedInput.Size = UDim2.new(1, -10, 0, 20)
 SpeedInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedInput.PlaceholderText = "Скорость (80-120)"
@@ -171,44 +171,63 @@ SpeedInput.FocusLost:Connect(function()
     if val and val > 0 then DriveSpeed = val else SpeedInput.Text = tostring(DriveSpeed) end
 end)
 
--- Поднять машину
-CreateButton("⬆ ПОДНЯТЬ МАШИНУ ⬆", Color3.fromRGB(200, 100, 30), function()
-    LiftVehicle()
-end)
-
--- Сохранение 4 точек ВПРЕД (1, 2, 3, 4)
-for i = 1, 4 do
+-- Кнопки сохранения 6 точек ВПРЕД
+for i = 1, 6 do
     CreateButton("Сохранить Вперед " .. i, Color3.fromRGB(40, 110, 50), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            Points[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
+            PointsForward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
         end
     end)
 end
 
--- Сохранение 4 точек НАЗАД (5, 6, 7, 8)
-for i = 5, 8 do
-    CreateButton("Сохранить Назад " .. (i - 4), Color3.fromRGB(120, 80, 40), function()
+-- Кнопки сохранения 6 точек НАЗАД
+for i = 1, 6 do
+    CreateButton("Сохранить Назад " .. i, Color3.fromRGB(120, 80, 40), function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            Points[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
+            PointsBackward[i] = LocalPlayer.Character.HumanoidRootPart.CFrame
         end
     end)
 end
 
--- Авто-маршрут ВПРЕД (по точкам 1 -> 2 -> 3 -> 4)
-CreateButton("▶ ЕХАТЬ ВПРЕД (1-4)", Color3.fromRGB(50, 100, 180), function()
+-- Кнопки разового проезда
+CreateButton("▶ ЕХАТЬ ВПРЕД (1 РАЗ)", Color3.fromRGB(50, 100, 180), function()
+    if IsLooping or IsDriving then return end
+    IsDriving = true
     task.spawn(function()
-        DriveRoute({1, 2, 3, 4})
+        RunForwardRoute()
+        IsDriving = false
     end)
 end)
 
--- Авто-маршрут НАЗАД (по точкам 5 -> 6 -> 7 -> 8)
-CreateButton("◀ ЕХАТЬ НАЗАД (1-4)", Color3.fromRGB(150, 80, 150), function()
+CreateButton("◀ ЕХАТЬ НАЗАД (1 РАЗ)", Color3.fromRGB(150, 80, 150), function()
+    if IsLooping or IsDriving then return end
+    IsDriving = true
     task.spawn(function()
-        DriveRoute({5, 6, 7, 8})
+        RunBackwardRoute()
+        IsDriving = false
     end)
 end)
 
--- Кнопка СТОП
-CreateButton("⛔ СТОП ⛔", Color3.fromRGB(160, 40, 40), function()
+-- Переключатель зацикливания
+local LoopBtn
+LoopBtn = CreateButton("🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄", Color3.fromRGB(180, 50, 50), function()
+    IsLooping = not IsLooping
+    if IsLooping then
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        task.spawn(StartAutoFarmLoop)
+    else
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        IsDriving = false
+    end
+end)
+
+CreateButton("⛔ СТОП ВСЕ ⛔", Color3.fromRGB(120, 30, 30), function()
+    IsLooping = false
     IsDriving = false
+    if LoopBtn then
+        LoopBtn.Text = "🔄 ЗАЦИКЛИВАНИЕ: ВЫКЛ 🔄"
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    end
 end)
